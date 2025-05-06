@@ -87,7 +87,7 @@ The `update_generation()` function handles both the logic and rendering. It uses
 ## 📂 File Structure
 
 project-folder/
-├── main.py # Main simulation script
-├── icon.png # Icon for the window (optional)
-├── saved_pattern.json # JSON file to store grid state (created when saving)
-└── README.md # This file!
+- main.py (Main simulation script)
+-  icon.png - Icon for the window (optional)
+-  saved_pattern.json - JSON file to store grid state (created when saving)
+-  README.md - This file!
