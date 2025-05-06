@@ -1,95 +1,106 @@
 import numpy as np
 import pygame
-import time
+import json
+import os
 
-# Colors
+import pygame.image
+
+# Configurações básicas
+WIDTH, HEIGHT = 800, 600
+CELL_SIZE = 10
+ROWS, COLS = HEIGHT // CELL_SIZE, WIDTH // CELL_SIZE
+FPS_MIN, FPS_MAX = 1, 60
+SAVE_FILE = "saved_pattern.json"
+
+# Cores
 BACKGROUND_COLOR = (10, 10, 10)
 GRID_LINE_COLOR = (50, 50, 50)
-DYING_COLOR = (0, 75, 0)
 ALIVE_COLOR = (0, 220, 0)
 
+class GameOfLife:
+    def __init__(self):
+        pygame.init()
+        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        pygame.display.set_caption("Conway's Game of Life")
+        icon = pygame.image.load("icon.png")
+        pygame.display.set_icon(icon)
+        self.clock = pygame.time.Clock()
+        self.grid = np.zeros((ROWS, COLS), dtype=int)
+        self.running = False
+        self.fps = 10
+        self.show_grid = True
 
-def update_generation(screen, current_grid, cell_size, is_running=False):
-    next_grid = np.zeros((current_grid.shape[0], current_grid.shape[1]))
+    def draw_grid(self):
+        self.screen.fill(BACKGROUND_COLOR)
+        for row in range(ROWS):
+            for col in range(COLS):
+                if self.grid[row, col] == 1:
+                    pygame.draw.rect(self.screen, ALIVE_COLOR,
+                                     (col*CELL_SIZE, row*CELL_SIZE, CELL_SIZE-1, CELL_SIZE-1))
+        if self.show_grid:
+            for x in range(0, WIDTH, CELL_SIZE):
+                pygame.draw.line(self.screen, GRID_LINE_COLOR, (x, 0), (x, HEIGHT))
+            for y in range(0, HEIGHT, CELL_SIZE):
+                pygame.draw.line(self.screen, GRID_LINE_COLOR, (0, y), (WIDTH, y))
 
-    for row, col in np.ndindex(current_grid.shape):
-        alive_neighbors = np.sum(current_grid[row-1:row+2, col-1:col+2]) - current_grid[row, col]
-        color = BACKGROUND_COLOR if current_grid[row, col] == 0 else ALIVE_COLOR
+    def update_generation(self):
+        next_grid = np.zeros((ROWS, COLS), dtype=int)
+        for row in range(ROWS):
+            for col in range(COLS):
+                alive_neighbors = np.sum(self.grid[max(0, row-1):min(ROWS, row+2),
+                                                   max(0, col-1):min(COLS, col+2)]) - self.grid[row, col]
+                if self.grid[row, col] == 1 and alive_neighbors in [2, 3]:
+                    next_grid[row, col] = 1
+                elif self.grid[row, col] == 0 and alive_neighbors == 3:
+                    next_grid[row, col] = 1
+        self.grid = next_grid
 
-        if current_grid[row, col] == 1:
-            if alive_neighbors < 2 or alive_neighbors > 3:
-                if is_running:
-                    color = DYING_COLOR
-            else:
-                next_grid[row, col] = 1
-                if is_running:
-                    color = ALIVE_COLOR
-        else:
-            if alive_neighbors == 3:
-                next_grid[row, col] = 1
-                if is_running:
-                    color = ALIVE_COLOR
+    def toggle_cell(self, pos):
+        col, row = pos[0] // CELL_SIZE, pos[1] // CELL_SIZE
+        self.grid[row, col] = 0 if self.grid[row, col] else 1
 
-        pygame.draw.rect(screen, color, (col * cell_size, row *
-                         cell_size, cell_size - 1, cell_size - 1))
+    def clear_grid(self):
+        self.grid = np.zeros((ROWS, COLS), dtype=int)
 
-    return next_grid
+    def save_pattern(self):
+        with open(SAVE_FILE, "w") as f:
+            json.dump(self.grid.tolist(), f)
 
+    def load_pattern(self):
+        if os.path.exists(SAVE_FILE):
+            with open(SAVE_FILE, "r") as f:
+                self.grid = np.array(json.load(f), dtype=int)
 
-def main():
-    pygame.init()
+    def run(self):
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    return
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_SPACE:
+                        self.running = not self.running
+                    elif event.key == pygame.K_c:
+                        self.clear_grid()
+                    elif event.key == pygame.K_s:
+                        self.save_pattern()
+                    elif event.key == pygame.K_l:
+                        self.load_pattern()
+                    elif event.key == pygame.K_g:
+                        self.show_grid = not self.show_grid
+                    elif event.key == pygame.K_UP:
+                        self.fps = min(self.fps + 5, FPS_MAX)
+                    elif event.key == pygame.K_DOWN:
+                        self.fps = max(self.fps - 5, FPS_MIN)
+                elif pygame.mouse.get_pressed()[0]:
+                    self.toggle_cell(pygame.mouse.get_pos())
 
-    pygame.display.set_caption("Conway's game of life")
-    icon = pygame.image.load("icon.png")
-    pygame.display.set_icon(icon)
+            if self.running:
+                self.update_generation()
 
-    screen = pygame.display.set_mode((800, 600))
-
-    grid = np.zeros((60, 80))
-    cell_size = 10
-
-    screen.fill(GRID_LINE_COLOR)
-    update_generation(screen, grid, cell_size)
-
-    pygame.display.flip()
-
-    is_running = False
-
-    while True:
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                return
-
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:
-                    is_running = not is_running
-                    update_generation(screen, grid, cell_size)
-                    pygame.display.update()
-
-            if pygame.mouse.get_pressed()[0]:
-                mouse_x, mouse_y = pygame.mouse.get_pos()
-                row = mouse_y // cell_size
-                col = mouse_x // cell_size
-
-                grid[row, col] = 1 if grid[row, col] == 0 else 0
-
-                update_generation(screen, grid, cell_size)
-                pygame.display.update()
-
-        screen.fill(GRID_LINE_COLOR)
-
-        if is_running:
-            grid = update_generation(screen, grid, cell_size, is_running=True)
-            pygame.display.update()
-
-        # time.sleep(0.01)
-
-        clock = pygame.time.Clock()
-        fps = 45
-        clock.tick(fps)
-
+            self.draw_grid()
+            pygame.display.flip()
+            self.clock.tick(self.fps)
 
 if __name__ == "__main__":
-    main()
+    GameOfLife().run()
