@@ -1,6 +1,6 @@
-# Conway's Game of Life - Enhanced Version
+# Conway's Game of Life
 
-#### Video Demo: <URL HERE>
+#### Video Demo: https://www.youtube.com/watch?v=vZWXhW341l4
 
 #### Description:
 
